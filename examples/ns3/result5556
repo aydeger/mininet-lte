@@ -1,0 +1,7 @@
+------------------------------------------------------------
+Server listening on TCP port 5556
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+[  4] local 10.0.0.3 port 5556 connected with 10.0.0.2 port 37088
+[ ID] Interval       Transfer     Bandwidth
+[  4]  0.0-10.4 sec  6.00 MBytes  4.82 Mbits/sec

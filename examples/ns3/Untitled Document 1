@@ -1,0 +1,154 @@
+#!/usr/bin/python
+
+"""
+Create a network where different switches are connected to
+different controllers, by creating a custom Switch() subclass.
+"""
+
+from mininet.net import Mininet
+from mininet.node import OVSSwitch, Controller, RemoteController
+from mininet.node import Node
+from mininet.topolib import TreeTopo
+from mininet.log import setLogLevel
+from mininet.cli import CLI
+from mininet.term import cleanUpScreens, makeTerms
+from mininet.util import quietRun
+import time
+import os
+from threading import Timer
+from os import environ
+
+import mininet.ns3
+from mininet.ns3 import WIFISegment    
+
+
+def tunnelX11( node, display=None):
+    """Create an X11 tunnel from node:6000 to the root host
+       display: display on root host (optional)
+       returns: node $DISPLAY, Popen object for tunnel"""
+    if display is None:
+        display = environ[ 'DISPLAY' ]
+    host, screen = display.split( ':' )
+    # Unix sockets should work
+    if not host or host == 'unix':
+        # GDM3 doesn't put credentials in .Xauthority,
+        # so allow root to just connect
+        quietRun( 'xhost +si:localuser:root' )
+        return display, None
+    else:
+        # Create a tunnel for the TCP connection
+        port = 6000 + int( float( screen ) )
+        connection = r'TCP\:%s\:%s' % ( host, port )
+        cmd = [ "socat", "TCP-LISTEN:%d,fork,reuseaddr" % port,
+               "EXEC:'mnexec -a 1 socat STDIO %s'" % connection ]
+    return 'localhost:' + screen, node.popen( cmd )
+
+def makeTerm( node, fileName, nodeIP, nodePort, title='Node', term='xterm', display=None ):
+    """Create an X11 tunnel to the node and start up a terminal.
+       node: Node object
+       title: base title
+       term: 'xterm' or 'gterm'
+       returns: two Popen objects, tunnel and terminal"""
+    title += ': ' + node.name
+    if not node.inNamespace:
+        title += ' (root)'
+    cmds = {
+        'xterm': [ 'xterm', '-title', title, '-display' ],
+        'gterm': [ 'gnome-terminal', '--title', title, '--display' ]
+    }
+    if term not in cmds:
+        error( 'invalid terminal type: %s' % term )
+        return
+    display, tunnel = tunnelX11( node, display )
+    term = node.popen( cmds[ term ] + [ display, '-e', 'python', fileName, nodeIP, nodePort] )
+
+#    return [ tunnel, term ] if tunnel else [ term ]
+    return term
+
+
+def linkStatusChange(switch1, switch2, newStatus, net, h1):
+    net.configLinkStatus(switch1, switch2, newStatus)   
+    #net.delLinkBetween(switch1, switch2)
+#    h1term = makeTerm( h1, 'server.py', '10.0.0.1', '1111', 'host1')
+#    h4term = makeTerm( h4, 'client.py', '10.0.0.1', '1111', 'host4')
+#    h1term.check_output(["echo", "Hello World!"])
+
+def startServer():
+    os.system('./init.sh')
+    #global h1term
+    h1term = makeTerm( h1, 'server.py', '10.0.0.1', '1111', 'host1')
+
+def startClient():
+    #global h4term
+    h4term = makeTerm( h4, 'client.py', '10.0.0.1', '1111', 'host4')
+
+def stopMininet(): 
+    global net                                                                                                         
+    net.stop() 
+
+
+setLogLevel( 'info' )
+#h1term = 1
+#h4term = 1
+# Two local and one "external" controller (which is actually c0)
+# Ignore the warning message that the remote isn't (yet) running
+#c2 = RemoteController( 'c2', ip='127.0.0.1', port=6633 )
+for x in range(0, 1):
+    net = Mininet() 
+
+    c2 = net.addController(name='FloodLight', controller=RemoteController, ip='10.102.206.207', port=6653)                                                                                                      
+    h1 = net.addHost( 'h1' )                                                                                              
+    h2 = net.addHost( 'h2' )                                                                                              
+    h3 = net.addHost( 'h3' )                                                                                              
+    h4 = net.addHost( 'h4' )                                                                                              
+    h5 = net.addHost( 'h5' )                                                                                             
+    h6 = net.addHost( 'h6' )                                                                                             
+    s1 = net.addSwitch( 's1' )                                                                                        
+    s2 = net.addSwitch( 's2' )                                                                                      
+    s3 = net.addSwitch( 's3' )                                                                                      
+    s4 = net.addSwitch( 's4' ) 
+
+    wifi = WIFISegment()
+#    wifi2 = WIFISegment()
+
+    wifi.add( h5 )
+    wifi.add( h6 )
+    #wifi2.add( h1 )
+    #wifi2.add( h2 )
+    #wifi2.add( h3 )
+    #wifi2.add( h4 )
+    #h1.setIP( '192.168.123.1/24' )
+    #h2.setIP( '192.168.123.2/24')
+    #h3.setIP( '192.168.123.3/24')
+    #h4.setIP( '192.168.123.4/24')
+    h5.setIP( '192.168.123.5/24')
+    h6.setIP( '192.168.123.6/24')
+
+    #c0 = net.addController( 'c0' )                                                                                          
+    net.addLink( h1, s1 )                                                                                                
+    net.addLink( h2, s2 )                                                                                                
+    net.addLink( h3, s3 )                                                                                                  
+    net.addLink( h4, s4 )   
+                                                                                              
+    net.addLink( s1, s2 )                                                                                           
+    net.addLink( s1, s3 )                                                                                           
+    net.addLink( s2, s4 )                                                                                         
+    net.addLink( s3, s4 )  
+                                                                                          
+    net.addLink( h5, s2 )                                                                                                 
+    net.addLink( h6, s4 )                                                                                                            
+    net.start()  
+    #Timer(5, startServer, (  )).start()  
+    #Timer(10, startClient, (  )).start()  
+    #Timer(20, linkStatusChange, ("s2", "s4", "down", net, h1)).start()  
+    #Timer(30, linkStatusChange, ("s2", "s4", "up", net, h2)).start()  
+    #Timer(40, stopMininet, ( )).start()
+    #net.pingAll()                                                            
+    #CLI( "xterm h1" )                                                                 
+    CLI( net )    
+#    time.sleep(45)
+   
+    
+
+
+     
