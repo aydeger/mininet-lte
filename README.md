@@ -107,6 +107,10 @@ to the Python API, is available on the
 There is also a wiki which you are encouraged to read and to
 contribute to, particularly the Frequently Asked Questions (FAQ.)
 
+### Changed Files to Support LTE
+
+Under source code folder, ns-3.py file has been changed to support ns-3 integration to work with LTE between two nodes.
+
 ### Support
 
 Mininet is community-supported. We encourage you to join the
